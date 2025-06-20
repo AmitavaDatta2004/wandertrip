@@ -1,26 +1,172 @@
-@import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Vibrant & Elegant Theme - Refreshed for more "gorgeous" feel */
+    --background: 220 60% 99%; /* Very light, almost ethereal blue-white */
+    --foreground: 225 25% 15%; /* Deep, sophisticated cool gray - slightly darker for contrast */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 225 25% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 25% 15%;
+    
+    --primary: 235 90% 65%; /* Richer, more vibrant blue */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 215 30% 95.5%; /* Softer, light cool gray */
+    --secondary-foreground: 220 15% 28%;
+    
+    --muted: 220 30% 97%; /* Very subtle cool gray for muted elements */
+    --muted-foreground: 220 15% 45%;
+    
+    --accent: 340 90% 60%; /* More vibrant, energetic pink/magenta */
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 80% 60%; /* Clear, strong red */
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 220 20% 85%; /* Defined, but not harsh borders */
+    --input: 220 20% 94%; /* Light input background */
+    --ring: 235 90% 65%; /* Primary color for focus rings */
+
+    /* Chart Colors - a mix of primary, accent, and analogous/complementary colors */
+    --chart-1: 235 90% 65%; /* Primary Blue */
+    --chart-2: 340 90% 60%; /* Accent Magenta */
+    --chart-3: 180 75% 50%; /* Teal/Cyan */
+    --chart-4: 35 95% 60%;  /* Bright Orange */
+    --chart-5: 270 80% 70%; /* Purple */
+    
+    --radius: 0.8rem; /* Slightly more pronounced rounding */
+
+    /* Sidebar Specific - can inherit or be distinct */
+    --sidebar-background: 225 25% 13%; /* Darker, for contrast if sidebar is dark */
+    --sidebar-foreground: 220 20% 92%;
+    --sidebar-primary: 235 85% 75%; /* Lighter primary for dark sidebar */
+    --sidebar-primary-foreground: 225 25% 8%;
+    --sidebar-accent: 340 85% 75%; /* Lighter accent for dark sidebar */
+    --sidebar-accent-foreground: 340 25% 8%;
+    --sidebar-border: 225 20% 22%;
+    --sidebar-ring: 235 85% 75%;
+  }
+
+  .dark {
+    /* Dark Theme - Deep & Vibrant - Refreshed */
+    --background: 225 20% 7%; /* Even deeper cool navy/charcoal */
+    --foreground: 220 30% 98%; /* Bright, clear text */
+    
+    --card: 225 20% 11%; /* Slightly lighter than background for cards */
+    --card-foreground: 220 30% 98%;
+    
+    --popover: 225 15% 9%; /* Even darker for popovers */
+    --popover-foreground: 220 30% 98%;
+    
+    --primary: 235 80% 72%; /* Lighter, more vibrant blue for dark mode */
+    --primary-foreground: 225 15% 8%; /* Dark text on primary */
+    
+    --secondary: 220 15% 16%; /* Dark cool gray for secondary elements */
+    --secondary-foreground: 220 25% 85%;
+    
+    --muted: 220 15% 20%; /* Subtle muted tone */
+    --muted-foreground: 220 20% 65%;
+    
+    --accent: 340 85% 70%; /* Vibrant accent, adjusted for dark mode */
+    --accent-foreground: 340 15% 8%; /* Dark text on accent */
+    
+    --destructive: 0 75% 65%; /* Clear destructive red */
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 220 15% 22%; /* Defined borders */
+    --input: 220 15% 18%; /* Dark input fields */
+    --ring: 235 80% 72%; /* Primary color for focus rings */
+
+    /* Sidebar Specific - Dark Theme */
+    --sidebar-background: 225 20% 9%; 
+    --sidebar-foreground: 220 30% 96%;
+    --sidebar-primary: 235 80% 75%;
+    --sidebar-primary-foreground: 225 15% 6%;
+    --sidebar-accent: 340 85% 75%;
+    --sidebar-accent-foreground: 340 15% 6%;
+    --sidebar-border: 220 15% 20%;
+    --sidebar-ring: 235 80% 75%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  main {
+    flex-grow: 1;
+  }
+  section {
+    @apply py-24 md:py-32; /* Increased vertical padding for sections */
+  }
+}
+
+/* Keyframe Animations */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.02); }
+}
+
+@keyframes gradient-flow-fast { /* Renamed from gradient-flow for clarity */
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes background-pan {
+  0% { background-position: 0% center; }
+  100% { background-position: -200% center; }
+}
+
+
+/* Utility class for animations */
+.animate-fade-in-up {
+  animation: fade-in-up 0.7s ease-out forwards;
+  opacity: 0;
+}
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Typewriter Cursor */
+.typewriter-cursor::after {
+  content: '|';
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
