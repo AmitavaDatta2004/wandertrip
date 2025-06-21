@@ -27,7 +27,8 @@ export interface Expense {
   date: Date;
   category: string;
   participants: string[];
-  splitType: 'equally' | 'unequally' | 'percentage';
+  splitType: 'equally' | 'unequally'; // Removed 'percentage' for simplicity
+  splitDetails?: { [userId: string]: number }; // For unequal splits
   notes?: string;
   createdAt?: Date | FirestoreTimestamp;
 }

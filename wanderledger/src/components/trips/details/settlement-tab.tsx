@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { IndianRupee, ArrowRight, CheckSquare, Scale, Loader2, History, FileText, UserCircle, CalendarIcon as CalendarIconLucide, ArrowDownUp, ClipboardEdit } from 'lucide-react'; // Added ClipboardEdit
+import { IndianRupee, ArrowRight, CheckSquare, Scale, Loader2, History, FileText, UserCircle, CalendarIcon as CalendarIconLucide, ArrowDownUp, ClipboardEdit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Trip, Expense, Member, RecordedPayment, SettlementTransaction, MemberFinancials } from '@/lib/types/trip';
 import { format } from 'date-fns';
@@ -41,7 +41,7 @@ export default function SettlementTab({ trip, expenses, members, recordedPayment
   const [paymentToRecordDetails, setPaymentToRecordDetails] = useState<SettlementTransaction | null>(null);
   const [recordPaymentNotes, setRecordPaymentNotes] = useState('');
   const [sortRecordedPaymentsBy, setSortRecordedPaymentsBy] = useState('date-desc');
-  const [filterRecorderId, setFilterRecorderId] = useState('all'); // New state for recorder filter
+  const [filterRecorderId, setFilterRecorderId] = useState('all');
 
   const memberFinancials = useMemo((): MemberFinancials[] => {
     if (!members || members.length === 0) return [];
@@ -56,12 +56,21 @@ export default function SettlementTab({ trip, expenses, members, recordedPayment
         if (financials[expense.paidBy]) {
           financials[expense.paidBy].paid += expense.amount;
         }
-        const sharePerParticipant = expense.amount / (expense.participants.length || 1);
-        expense.participants.forEach(participantId => {
-          if (financials[participantId]) {
-            financials[participantId].share += sharePerParticipant;
-          }
-        });
+        
+        if (expense.splitType === 'unequally' && expense.splitDetails) {
+          Object.entries(expense.splitDetails).forEach(([participantId, shareAmount]) => {
+            if (financials[participantId] && expense.participants.includes(participantId)) {
+              financials[participantId].share += shareAmount;
+            }
+          });
+        } else { // Default to equal split
+          const sharePerParticipant = expense.amount / (expense.participants.length || 1);
+          expense.participants.forEach(participantId => {
+            if (financials[participantId]) {
+              financials[participantId].share += sharePerParticipant;
+            }
+          });
+        }
       });
     }
 
@@ -160,7 +169,7 @@ export default function SettlementTab({ trip, expenses, members, recordedPayment
         filtered.sort((a, b) => b.amount - a.amount);
         break;
       case 'amount-asc':
-        sorted.sort((a, b) => a.amount - b.amount);
+        filtered.sort((a, b) => a.amount - b.amount);
         break;
       default:
         break;

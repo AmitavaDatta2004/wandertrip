@@ -48,8 +48,12 @@ export default function TripOverviewTab({ trip, expenses, members, currentUser, 
         paidByCurrentUserInitial += exp.amount;
       }
       if (exp.participants.includes(currentUser.uid)) {
-        const numberOfParticipants = exp.participants.length || 1;
-        shareForCurrentUser += exp.amount / numberOfParticipants;
+        if (exp.splitType === 'unequally' && exp.splitDetails && exp.splitDetails[currentUser.uid]) {
+            shareForCurrentUser += exp.splitDetails[currentUser.uid];
+        } else {
+            const numberOfParticipants = exp.participants.length || 1;
+            shareForCurrentUser += exp.amount / numberOfParticipants;
+        }
       }
     });
     
@@ -67,10 +71,7 @@ export default function TripOverviewTab({ trip, expenses, members, currentUser, 
       });
     }
     
-    // Calculate the final net balance:
-    // (Initial Net from Expenses) + Amounts User Paid Out in Settlement - Amounts User Received in Settlement
-    const initialNetFromExpenses = paidByCurrentUserInitial - shareForCurrentUser;
-    const finalNetBalance = initialNetFromExpenses + paidAsSettlements - receivedFromSettlements;
+    const finalNetBalance = (paidByCurrentUserInitial - shareForCurrentUser) + paidAsSettlements - receivedFromSettlements;
 
     return {
       currentUserTotalPaidInitial: paidByCurrentUserInitial,
@@ -299,5 +300,3 @@ export default function TripOverviewTab({ trip, expenses, members, currentUser, 
     </div>
   );
 }
-
-    

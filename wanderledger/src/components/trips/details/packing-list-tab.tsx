@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp as FirestoreTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -46,7 +46,7 @@ export default function PackingListTab({ tripId, initialPackingItems, onPackingA
         name: newItemName.trim(),
         packed: false,
         addedBy: currentUser.uid,
-        createdAt: FirestoreTimestamp.now(),
+        createdAt: serverTimestamp(),
       };
       await addDoc(collection(db, 'trips', tripId, 'packingItems'), itemToAdd);
 

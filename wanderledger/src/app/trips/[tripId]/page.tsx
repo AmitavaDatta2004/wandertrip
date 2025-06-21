@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, Users, ListChecks, MapPin, BarChart3, FileText, CalendarDays, Scale, Loader2, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
+import { DollarSign, Users, ListChecks, MapPin, BarChart3, FileText, CalendarDays, Scale, Loader2, AlertTriangle, Edit3, Sparkles, Download } from 'lucide-react';
 import Image from 'next/image';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/lib/firebase';
@@ -14,7 +14,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { useAuth } from '@/contexts/auth-context';
 import React, { useCallback, useEffect } from 'react';
 
-import type { Trip, Expense, ItineraryEvent, PackingListItem, Member, RecordedPayment } from '@/lib/types/trip';
+import type { Trip, Expense, ItineraryEvent, PackingListItem, Member, RecordedPayment, MemberFinancials, SettlementTransaction } from '@/lib/types/trip';
 
 import TripOverviewTab from '@/components/trips/details/trip-overview-tab';
 import ExpensesTab from '@/components/trips/details/expenses-tab';
@@ -22,6 +22,9 @@ import SettlementTab from '@/components/trips/details/settlement-tab';
 import MembersTab from '@/components/trips/details/members-tab';
 import ItineraryTab from '@/components/trips/details/itinerary-tab';
 import PackingListTab from '@/components/trips/details/packing-list-tab';
+import { generateTripPDF } from '@/lib/pdf-exporter';
+import { useToast } from '@/hooks/use-toast';
+
 
 async function fetchTripDetails(tripId: string): Promise<Trip | null> {
   if (!tripId) return null;
@@ -92,6 +95,7 @@ export default function TripDetailPage() {
   const tripId = params.tripId as string;
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('TripDetailPage currentUser.uid:', currentUser?.uid);
@@ -142,6 +146,103 @@ export default function TripDetailPage() {
     : undefined;
   const isLoadingMembers = memberQueries.some(q => q.isLoading);
   const errorMembers = memberQueries.find(q => q.error)?.error;
+
+  const handleExportPDF = () => {
+    if (!trip || !expenses || !members || !itineraryEvents || !packingItems || !recordedPayments) {
+        toast({
+            title: "Cannot Export PDF",
+            description: "All trip data must be fully loaded before exporting. Please wait a moment and try again.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    const getMemberName = (uid: string) => members?.find(m => m.id === uid)?.displayName || uid.substring(0, 6) + "...";
+
+    const financials: Record<string, { paid: number, share: number, net: number }> = {};
+    members.forEach(member => {
+        financials[member.id] = { paid: 0, share: 0, net: 0 };
+    });
+
+    expenses.forEach(expense => {
+        if (financials[expense.paidBy]) {
+            financials[expense.paidBy].paid += expense.amount;
+        }
+        if (expense.splitType === 'unequally' && expense.splitDetails) {
+            Object.entries(expense.splitDetails).forEach(([participantId, shareAmount]) => {
+                if (financials[participantId] && expense.participants.includes(participantId)) {
+                    financials[participantId].share += shareAmount;
+                }
+            });
+        } else {
+            const sharePerParticipant = expense.amount / (expense.participants.length || 1);
+            expense.participants.forEach(participantId => {
+                if (financials[participantId]) {
+                    financials[participantId].share += sharePerParticipant;
+                }
+            });
+        }
+    });
+
+    members.forEach(member => {
+        financials[member.id].net = financials[member.id].paid - financials[member.id].share;
+    });
+
+    recordedPayments.forEach(payment => {
+        if (financials[payment.fromUserId]) financials[payment.fromUserId].net += payment.amount;
+        if (financials[payment.toUserId]) financials[payment.toUserId].net -= payment.amount;
+    });
+
+    const memberFinancials: MemberFinancials[] = members.map(member => ({
+        memberId: member.id,
+        memberName: getMemberName(member.id),
+        totalPaid: financials[member.id].paid,
+        totalShare: financials[member.id].share,
+        netBalance: financials[member.id].net,
+        initialNetBalance: 0, // Not needed for this export
+    })).sort((a, b) => b.netBalance - a.netBalance);
+
+
+    let debtors = memberFinancials.filter(m => m.netBalance < -0.01).map(m => ({ ...m, balance: m.netBalance }));
+    let creditors = memberFinancials.filter(m => m.netBalance > 0.01).map(m => ({ ...m, balance: m.netBalance }));
+    debtors.sort((a, b) => a.balance - b.balance);
+    creditors.sort((a, b) => b.balance - a.balance);
+
+    const settlementTransactions: SettlementTransaction[] = [];
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+
+    while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+        const debtor = debtors[debtorIndex];
+        const creditor = creditors[creditorIndex];
+        const amount = Math.min(-debtor.balance, creditor.balance);
+
+        if (amount > 0.01) {
+            settlementTransactions.push({
+                fromUserId: debtor.memberId,
+                from: debtor.memberName,
+                toUserId: creditor.memberId,
+                to: creditor.memberName,
+                amount: amount,
+            });
+            debtor.balance += amount;
+            creditor.balance -= amount;
+        }
+
+        if (Math.abs(debtor.balance) < 0.01) debtorIndex++;
+        if (Math.abs(creditor.balance) < 0.01) creditorIndex++;
+    }
+
+    generateTripPDF({
+        trip,
+        expenses,
+        members,
+        itineraryEvents,
+        packingItems,
+        memberFinancials,
+        settlementTransactions,
+    });
+  };
 
 
   const handleGenericAction = useCallback((queryKeysToInvalidate: string[]) => {
@@ -214,12 +315,24 @@ export default function TripDetailPage() {
             <CalendarDays className="mr-3 h-4 w-4 md:h-5 md:w-5 flex-shrink-0" /> {trip.startDate instanceof Date ? trip.startDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : ''} - {trip.endDate instanceof Date ? trip.endDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
           </p>
         </div>
-        {currentUser?.uid === trip.ownerId && (
-          <Button variant="outline" size="icon" className="absolute top-5 right-5 bg-background/70 hover:bg-background text-foreground shadow-lg backdrop-blur-sm transition-all hover:scale-110 active:scale-95 group">
-            <Edit3 className="h-5 w-5 group-hover:text-primary transition-colors" />
-            <span className="sr-only">Edit Trip Details</span>
-          </Button>
-        )}
+        <div className="absolute top-5 right-5 flex gap-2">
+            <Button
+                variant="outline"
+                size="icon"
+                className="bg-background/70 hover:bg-background text-foreground shadow-lg backdrop-blur-sm transition-all hover:scale-110 active:scale-95 group"
+                onClick={handleExportPDF}
+                aria-label="Export trip details to PDF"
+                >
+                <Download className="h-5 w-5 group-hover:text-primary transition-colors" />
+                <span className="sr-only">Export PDF</span>
+            </Button>
+            {currentUser?.uid === trip.ownerId && (
+            <Button variant="outline" size="icon" className="bg-background/70 hover:bg-background text-foreground shadow-lg backdrop-blur-sm transition-all hover:scale-110 active:scale-95 group">
+                <Edit3 className="h-5 w-5 group-hover:text-primary transition-colors" />
+                <span className="sr-only">Edit Trip Details</span>
+            </Button>
+            )}
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
@@ -293,7 +406,14 @@ export default function TripDetailPage() {
         <TabsContent value="itinerary">
           {isLoadingItinerary || isLoadingTrip ? <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary mt-12" /> :
             errorItinerary ? <p className="text-destructive text-center mt-12 text-lg">Error loading itinerary: {errorItinerary.message}</p> :
-              <ItineraryTab tripId={tripId} itineraryEvents={itineraryEvents} onEventAction={() => handleGenericAction(['tripItinerary'])} tripStartDate={trip?.startDate} tripEndDate={trip?.endDate}/>}
+              <ItineraryTab 
+                tripId={tripId} 
+                itineraryEvents={itineraryEvents} 
+                onEventAction={() => handleGenericAction(['tripItinerary'])} 
+                tripStartDate={trip?.startDate} 
+                tripEndDate={trip?.endDate}
+                members={members}
+              />}
         </TabsContent>
         <TabsContent value="packing">
           {isLoadingPacking || isLoadingTrip ? <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary mt-12" /> :

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ async function fetchUserTrips(userId: string | undefined | null): Promise<Trip[]
     throw error;
   }
 }
+
 function TripCard({ trip }: { trip: Trip }) {
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl-light dark:shadow-primary/10 dark:hover:shadow-xl-dark transition-all duration-300 ease-in-out group transform hover:-translate-y-2 hover:scale-102 border border-transparent hover:border-primary/30 dark:bg-card/80 dark:hover:border-primary/50">

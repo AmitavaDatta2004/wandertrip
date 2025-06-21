@@ -5,12 +5,13 @@ import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, FileText, MapPinIcon, CalendarClock, ListFilter, CalendarRange, History as HistoryIcon } from 'lucide-react'; // Added CalendarRange, HistoryIcon
+import { PlusCircle, FileText, MapPinIcon, CalendarClock, ListFilter, CalendarRange, History as HistoryIcon, CalendarPlus } from 'lucide-react';
 import AddEventModal from '@/components/trips/add-event-modal';
 import { cn } from '@/lib/utils';
-import type { ItineraryEvent } from '@/lib/types/trip';
+import type { ItineraryEvent, Member } from '@/lib/types/trip';
 import { format, isSameDay, isValid, parseISO, isBefore, isAfter, isEqual } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/contexts/auth-context';
 
 interface ItineraryTabProps {
   tripId: string;
@@ -18,6 +19,7 @@ interface ItineraryTabProps {
   onEventAction: () => void;
   tripStartDate?: Date;
   tripEndDate?: Date;
+  members: Member[] | undefined;
 }
 
 const eventTypesForFilter = ['All Types', 'Activity', 'Flight', 'Train', 'Bus', 'Accommodation', 'Meeting Point', 'Note', 'Custom'];
@@ -60,10 +62,52 @@ const ensureDateObject = (dateInput: any): Date | null => {
 };
 
 
-export default function ItineraryTab({ tripId, itineraryEvents, onEventAction, tripStartDate, tripEndDate }: ItineraryTabProps) {
+export default function ItineraryTab({ tripId, itineraryEvents, onEventAction, tripStartDate, tripEndDate, members }: ItineraryTabProps) {
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [filterEventType, setFilterEventType] = useState('All Types');
   const [filterTimeframe, setFilterTimeframe] = useState('all'); // 'all', 'upcoming', 'past'
+  const { user: currentUser } = useAuth();
+
+  const handleAddToCalendar = (event: ItineraryEvent & { validStartDate: Date | null, validEndDate: Date | null }) => {
+    if (!event.validStartDate) return;
+
+    // Google Calendar link format is YYYYMMDDTHHMMSS/YYYYMMDDTHHMMSS without any punctuation.
+    const formatDateToGoogle = (date: Date): string => {
+        return format(date, "yyyyMMdd'T'HHmmss");
+    };
+
+    const startDateStr = formatDateToGoogle(event.validStartDate);
+    // Use end date if available and valid, otherwise default to one hour after start
+    const endDateForCalendar = event.validEndDate && event.validEndDate > event.validStartDate 
+        ? event.validEndDate 
+        : new Date(event.validStartDate.getTime() + 60 * 60 * 1000);
+    const endDateStr = formatDateToGoogle(endDateForCalendar);
+
+    const details = [
+        event.notes || '',
+        `\n\nEvent from WanderLedger trip.`,
+    ].join('\n');
+    
+    const guestEmails = members
+        ?.map(m => m.email)
+        .filter((email): email is string => !!email && email !== currentUser?.email) // filter out nulls and current user
+        .join(',');
+
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: event.title,
+        dates: `${startDateStr}/${endDateStr}`,
+        details: details,
+        location: event.location || '',
+    });
+    
+    if (guestEmails) {
+        params.append('add', guestEmails);
+    }
+
+    const url = `https://www.google.com/calendar/render?${params.toString()}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const filteredAndSortedEvents = useMemo(() => {
     if (!itineraryEvents) return [];
@@ -197,6 +241,15 @@ export default function ItineraryTab({ tripId, itineraryEvents, onEventAction, t
                           <h4 className="font-semibold text-lg text-foreground dark:text-gray-100 group-hover/item:text-primary transition-colors">{event.title}</h4>
                           {event.location && <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1 flex items-center"><MapPinIcon className="h-4 w-4 mr-1.5 opacity-70" /> {event.location}</p>}
                         </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute top-3 right-3 h-8 group-hover/item:opacity-100 sm:opacity-0 transition-opacity flex items-center gap-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            onClick={() => handleAddToCalendar(event)}
+                        >
+                            <CalendarPlus className="h-4 w-4"/>
+                            <span className="hidden lg:inline">Add to Calendar</span>
+                        </Button>
                       </div>
                       {event.notes && <p className="text-sm text-muted-foreground/90 dark:text-gray-300 mt-2.5 pt-2.5 border-t border-dashed dark:border-gray-700 whitespace-pre-wrap">{event.notes}</p>}
                       {event.validEndDate && event.validStartDate && !isSameDay(event.validStartDate, event.validEndDate) && !event.time &&

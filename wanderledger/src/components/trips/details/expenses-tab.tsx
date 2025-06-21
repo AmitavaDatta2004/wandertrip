@@ -8,7 +8,7 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Trash2, DollarSign, ListFilter, ArrowDownUp, UserSquare, Tag } from 'lucide-react'; // Added UserSquare, Tag
+import { PlusCircle, Trash2, DollarSign, ListFilter, ArrowDownUp, UserSquare, Tag } from 'lucide-react';
 import AddExpenseModal from '@/components/trips/add-expense-modal';
 import {
   AlertDialog,
@@ -42,7 +42,7 @@ export default function ExpensesTab({ trip, expenses, members, tripCurrency, onE
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [sortOption, setSortOption] = useState('date-desc');
   const [filterCategory, setFilterCategory] = useState('All Categories');
-  const [filterPayerId, setFilterPayerId] = useState('all'); // New state for payer filter
+  const [filterPayerId, setFilterPayerId] = useState('all');
   const { toast } = useToast();
   const displayCurrencySymbol = tripCurrency === 'INR' ? '₹' : tripCurrency;
   const isTripOwner = currentUser?.uid === trip.ownerId;
@@ -52,12 +52,22 @@ export default function ExpensesTab({ trip, expenses, members, tripCurrency, onE
   const getParticipantShareDetails = (expense: Expense) => {
     if (!members || !expense.participants || expense.participants.length === 0) return 'N/A';
     const payerName = getMemberName(expense.paidBy);
+    
+    if (expense.splitType === 'unequally' && expense.splitDetails) {
+        const details = Object.entries(expense.splitDetails)
+            .filter(([_, amount]) => amount > 0)
+            .map(([uid, amount]) => `${getMemberName(uid)}: ${displayCurrencySymbol}${amount.toFixed(2)}`)
+            .join(', ');
+        return `Unequal split: ${details}. Paid by ${payerName}.`;
+    }
+
+    // Fallback to equal split
     const participantNames = expense.participants.map(uid => getMemberName(uid)).join(', ');
     const shareAmount = (expense.amount / expense.participants.length).toFixed(2);
     if (expense.participants.length === 1 && expense.participants[0] === expense.paidBy) {
       return `Paid by ${payerName} for themself.`;
     }
-    return `Participants: ${participantNames}. Each owes ${displayCurrencySymbol}${shareAmount} to ${payerName}.`;
+    return `Equally split between ${participantNames}. Each owes ${displayCurrencySymbol}${shareAmount} to ${payerName}.`;
   };
 
   const handleDeleteExpense = async () => {
@@ -87,7 +97,7 @@ export default function ExpensesTab({ trip, expenses, members, tripCurrency, onE
       filtered = filtered.filter(exp => exp.category === filterCategory);
     }
 
-    if (filterPayerId !== 'all') { // Apply payer filter
+    if (filterPayerId !== 'all') {
       filtered = filtered.filter(exp => exp.paidBy === filterPayerId);
     }
 
@@ -114,7 +124,7 @@ export default function ExpensesTab({ trip, expenses, members, tripCurrency, onE
         break;
     }
     return filtered;
-  }, [expenses, sortOption, filterCategory, filterPayerId]); // Added filterPayerId to dependencies
+  }, [expenses, sortOption, filterCategory, filterPayerId]);
 
 
   return (
