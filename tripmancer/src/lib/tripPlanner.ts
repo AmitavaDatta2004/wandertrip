@@ -45,6 +45,7 @@ export interface NewsItem {
   description: string;
   url: string;
   source: string;
+  category?: string;
 }
 
 export interface DestinationDetails {

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import AppLayout from '@/components/AppLayout';
 import { generateTripPlan } from '@/lib/tripPlanner';
 import { useTrip } from '@/contexts/TripContext';
-import { Wand2, Sparkles, Users, CalendarDays, DollarSign, Map, MapPin } from 'lucide-react';
+import { Wand2, Sparkles, Users, CalendarDays, DollarSign, Map, MapPin, Clock, Banknote } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -37,12 +38,16 @@ const formSchema = z.object({
   people: z.number().min(1).max(10),
   budget: z.string(),
   location: z.string().optional(),
+  currency: z.string(),
+  timeOfVisit: z.string(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 const GenerateTrip = () => {
   const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<string>('');
   const { toast } = useToast();
   const navigate = useNavigate();
   const { setCurrentTrip } = useTrip();
@@ -56,8 +61,55 @@ const GenerateTrip = () => {
       people: 1,
       budget: "moderate",
       location: "",
+      currency: "USD",
+      timeOfVisit: "now",
     },
   });
+
+  // Get user's current location
+  const getCurrentLocation = async () => {
+    setLocationLoading(true);
+    try {
+      if (!navigator.geolocation) {
+        throw new Error('Geolocation is not supported by this browser');
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      
+      // Use reverse geocoding to get location name
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const locationString = `${data.city || data.locality || ''}, ${data.principalSubdivision || ''}, ${data.countryName || ''}`.replace(/^,\s*|,\s*$/g, '');
+        setCurrentLocation(locationString);
+        form.setValue('location', locationString);
+        toast({
+          title: "Location detected",
+          description: `Current location: ${locationString}`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error getting location:', error);
+      toast({
+        title: "Location access failed",
+        description: "Please enter your location manually or enable location services.",
+        variant: "destructive",
+      });
+    } finally {
+      setLocationLoading(false);
+    }
+  };
   
   const handleSubmit = async (values: FormValues) => {
     if (!values.mood.trim()) {
@@ -76,7 +128,9 @@ const GenerateTrip = () => {
         values.days, 
         values.budget, 
         values.people,
-        values.location
+        values.location || currentLocation,
+        values.currency,
+        values.timeOfVisit
       );
       
       setCurrentTrip(data);
@@ -240,24 +294,110 @@ const GenerateTrip = () => {
                     
                     <FormField
                       control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                            <div className="flex items-center gap-2">
+                              <Banknote className="h-5 w-5" /> 
+                              <span>Preferred Currency</span>
+                            </div>
+                          </FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="USD">USD ($)</SelectItem>
+                              <SelectItem value="EUR">EUR (€)</SelectItem>
+                              <SelectItem value="GBP">GBP (£)</SelectItem>
+                              <SelectItem value="JPY">JPY (¥)</SelectItem>
+                              <SelectItem value="INR">INR (₹)</SelectItem>
+                              <SelectItem value="CAD">CAD ($)</SelectItem>
+                              <SelectItem value="AUD">AUD ($)</SelectItem>
+                              <SelectItem value="CHF">CHF (Fr)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            All budget estimates will be shown in this currency
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
                       name="location"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-lg font-medium text-gray-700 dark:text-gray-200">
                             <div className="flex items-center gap-2">
                               <MapPin className="h-5 w-5" /> 
-                              <span>Preferred Location (Optional)</span>
+                              <span>Starting Location</span>
                             </div>
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="e.g., Europe, Asia, Mountains, Beach"
-                              {...field}
-                              className="h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            />
+                            <div className="space-y-2">
+                              <Input
+                                placeholder="e.g., New York, USA or leave blank for anywhere"
+                                {...field}
+                                className="h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                              />
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={getCurrentLocation}
+                                disabled={locationLoading}
+                                className="w-full"
+                              >
+                                {locationLoading ? "Detecting..." : "Use Current Location"}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormDescription>
-                            Leave blank to get recommendations from anywhere
+                            We'll suggest destinations and calculate travel distances from here
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="timeOfVisit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-medium text-gray-700 dark:text-gray-200">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-5 w-5" /> 
+                              <span>When do you want to travel?</span>
+                            </div>
+                          </FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <SelectValue placeholder="Select travel time" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="now">Right now</SelectItem>
+                              <SelectItem value="1week">In 1 week</SelectItem>
+                              <SelectItem value="2weeks">In 2 weeks</SelectItem>
+                              <SelectItem value="1month">In 1 month</SelectItem>
+                              <SelectItem value="2months">In 2 months</SelectItem>
+                              <SelectItem value="3months">In 3 months</SelectItem>
+                              <SelectItem value="6months">In 6 months</SelectItem>
+                              <SelectItem value="1year">In 1 year</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            This helps us consider weather, seasonal events, and pricing
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -318,7 +458,7 @@ const GenerateTrip = () => {
           <div className="mt-12 text-center">
             <h3 className="text-xl font-semibold mb-4 dark:text-white">How It Works</h3>
             <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Our AI analyzes your mood, preferences, and travel parameters to create a truly personalized travel experience. 
+              Our AI analyzes your mood, preferences, location, and travel parameters to create a truly personalized travel experience. 
               The more you share, the better we can match destinations and activities to your current needs.
             </p>
           </div>

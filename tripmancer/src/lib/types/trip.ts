@@ -78,6 +78,7 @@ export type NewsItem = {
   description: string;
   url: string;
   source: string;
+  category?: string;
 };
 
 export type JournalEntry = {

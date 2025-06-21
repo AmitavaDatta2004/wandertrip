@@ -16,6 +16,9 @@ import Results from "./pages/Results";
 import Poster from "./pages/Poster";
 import NotFound from "./pages/NotFound";
 import GenerateTrip from "./pages/GenerateTrip";
+import TravelPackages from "./pages/TravelPackages";
+import Hotels from '@/pages/Hotels';
+
 
 const queryClient = new QueryClient();
 
@@ -31,6 +34,10 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/packages" element={<TravelPackages />} />
+              <Route path="/hotels" element={<Hotels />} />
+
+
               <Route 
                 path="/dashboard" 
                 element={
