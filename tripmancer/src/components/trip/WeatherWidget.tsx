@@ -13,23 +13,39 @@ type WeatherWidgetProps = {
 const WeatherWidget = ({ destination, travelTime = 'now' }: WeatherWidgetProps) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadWeather = async () => {
       try {
+        console.log('Loading weather for:', destination, travelTime);
         const weatherData = await fetchDestinationWeather(destination, travelTime);
+        console.log('Received weather data:', weatherData);
+        
+        // Validate the weather data structure
+        if (!weatherData || !weatherData.current || !weatherData.forecast) {
+          throw new Error('Invalid weather data structure');
+        }
+        
         setWeather(weatherData);
+        setError(null);
       } catch (error) {
         console.error('Error loading weather:', error);
+        setError('Failed to load weather data');
+        setWeather(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadWeather();
+    if (destination) {
+      loadWeather();
+    }
   }, [destination, travelTime]);
 
-  const getWeatherIcon = (iconName: string) => {
+  const getWeatherIcon = (iconName?: string) => {
+    if (!iconName) return <Sun className="h-8 w-8 text-yellow-500" />;
+    
     switch (iconName) {
       case 'sun': return <Sun className="h-8 w-8 text-yellow-500" />;
       case 'cloud': return <Cloud className="h-8 w-8 text-gray-500" />;
@@ -53,7 +69,20 @@ const WeatherWidget = ({ destination, travelTime = 'now' }: WeatherWidgetProps) 
     );
   }
 
-  if (!weather) return null;
+  if (error || !weather || !weather.current || !weather.forecast) {
+    return (
+      <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-none shadow-lg">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <Thermometer className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {error || 'Weather data unavailable'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-none shadow-lg hover:shadow-xl transition-all duration-300">
@@ -67,13 +96,13 @@ const WeatherWidget = ({ destination, travelTime = 'now' }: WeatherWidgetProps) 
         {/* Current Weather */}
         <div className="flex items-center justify-between p-4 bg-white/60 dark:bg-gray-800/60 rounded-lg backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            {getWeatherIcon(weather.current.icon)}
+            {getWeatherIcon(weather.current?.icon)}
             <div>
               <p className="text-2xl font-bold text-gray-800 dark:text-white">
-                {weather.current.temperature}°C
+                {weather.current?.temperature || 'N/A'}°C
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                {weather.current.condition}
+                {weather.current?.condition || 'Unknown'}
               </p>
             </div>
           </div>
@@ -88,14 +117,18 @@ const WeatherWidget = ({ destination, travelTime = 'now' }: WeatherWidgetProps) 
             <Eye className="h-4 w-4 text-blue-500" />
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Humidity</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{weather.current.humidity}%</p>
+              <p className="font-semibold text-gray-800 dark:text-white">
+                {weather.current?.humidity || 'N/A'}%
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-3 bg-white/40 dark:bg-gray-800/40 rounded-lg">
             <Wind className="h-4 w-4 text-gray-500" />
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Wind</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{weather.current.windSpeed} km/h</p>
+              <p className="font-semibold text-gray-800 dark:text-white">
+                {weather.current?.windSpeed || 'N/A'} km/h
+              </p>
             </div>
           </div>
         </div>
@@ -104,13 +137,13 @@ const WeatherWidget = ({ destination, travelTime = 'now' }: WeatherWidgetProps) 
         <div className="p-4 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {getWeatherIcon(weather.forecast.icon)}
+              {getWeatherIcon(weather.forecast?.icon)}
               <div>
                 <p className="font-semibold text-gray-800 dark:text-white">
-                  Expected: {weather.forecast.temperature}°C
+                  Expected: {weather.forecast?.temperature || 'N/A'}°C
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {weather.forecast.condition}
+                  {weather.forecast?.condition || 'Unknown'}
                 </p>
               </div>
             </div>

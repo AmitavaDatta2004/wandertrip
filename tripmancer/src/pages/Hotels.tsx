@@ -1,13 +1,13 @@
-
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Star, Users, MapPin, BadgeIndianRupee, ChevronDown, ChevronUp, Wifi, Car, Coffee, Waves } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useToast } from '@/hooks/use-toast';
 import { hotels, Hotel } from '@/data/hotels';
 
 const Hotels = () => {
@@ -15,6 +15,14 @@ const Hotels = () => {
   const [sortBy, setSortBy] = useState('rating');
   const [filterCategory, setFilterCategory] = useState('all');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+
+  const handleBookHotel = (hotelName: string) => {
+    toast({
+      title: "Booking Confirmed! 🎉",
+      description: `Your reservation at ${hotelName} has been booked successfully.`,
+    });
+  };
 
   const toggleCardExpansion = (hotelId: string) => {
     const newExpanded = new Set(expandedCards);
@@ -266,7 +274,7 @@ const Hotels = () => {
                       </div>
                     </CollapsibleContent>
                     
-                    <div className="pt-4">
+                    <div className="pt-4 space-y-2">
                       <CollapsibleTrigger asChild>
                         <Button 
                           variant="outline" 
@@ -285,6 +293,13 @@ const Hotels = () => {
                           )}
                         </Button>
                       </CollapsibleTrigger>
+                      
+                      <Button 
+                        onClick={() => handleBookHotel(hotel.name)}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold"
+                      >
+                        Book Now
+                      </Button>
                     </div>
                   </Collapsible>
                 </CardContent>

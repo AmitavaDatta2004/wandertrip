@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useToast } from '@/hooks/use-toast';
 import { travelPackages, TravelPackage } from '@/data/travelPackages';
 
 const TravelPackages = () => {
@@ -15,6 +16,14 @@ const TravelPackages = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+
+  const handleBookPackage = (packageTitle: string) => {
+    toast({
+      title: "Booking Confirmed! 🎉",
+      description: `Your ${packageTitle} package has been booked successfully.`,
+    });
+  };
 
   const toggleCardExpansion = (packageId: string) => {
     const newExpanded = new Set(expandedCards);
@@ -307,7 +316,7 @@ const TravelPackages = () => {
                       </div>
                     </CollapsibleContent>
                     
-                    <div className="pt-4">
+                    <div className="pt-4 space-y-2">
                       <CollapsibleTrigger asChild>
                         <Button 
                           variant="outline" 
@@ -326,6 +335,13 @@ const TravelPackages = () => {
                           )}
                         </Button>
                       </CollapsibleTrigger>
+                      
+                      <Button 
+                        onClick={() => handleBookPackage(pkg.title)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
+                      >
+                        Book Now
+                      </Button>
                     </div>
                   </Collapsible>
                 </CardContent>
